@@ -2,21 +2,31 @@
 <button autofocus>Start</button>
 <script>
   const tempo = 160;
-  const bps = tempo / 60;
   const spb = 60 / tempo;
   function envelopeAR(t, at, rt) {
-    if (t < 0 || (at + rt) <= t) return 0;
+    if (t < 0 || at + rt <= t) return 0;
     if (t < at) return t / at;
-    if (at < t) return 1 - (t - at) / rt;
-    return 1;
+    return Math.max(0, 1 - (t - at) / rt);
   }
   function envelopeASR(t, duration, at, rt) {
-    const st = Math.max(0, duration - at);
-    if (t < 0 || (at + st + rt) <= t) return 0;
+    if (t < 0 || duration + rt <= t) return 0;
+    if (duration < at) {
+      if (t < duration) return t / at;
+      return Math.max(0, duration / at - (t - duration) / rt);
+    }
     if (t < at) return t / at;
-    if (t < at + st) return 1;
-    if (at + st < t) return 1 - (t - (at + st)) / rt;
-    return 1;
+    if (t < duration) return 1;
+    return Math.max(0, 1 - (t - duration) / rt);
+  }
+  function envelopeADR(t, duration, at, dt, rt) {
+    if (t < 0 || duration + rt <= t) return 0;
+    if (duration < at) {
+      if (t < duration) return t / at;
+      return Math.max(0, duration / at - (t - duration) / rt);
+    }
+    if (t < at) return t / at;
+    if (t < duration) return 1 - (t - at) / dt;
+    return Math.max(0, 1 - (duration - at) / dt - (t - duration) / rt);
   }
   function noteNumberFromString(str) {
     const octaveOffset = 12 * (str.codePointAt(0) - "4".codePointAt(0));
@@ -33,42 +43,44 @@
     return 0.125 * e * Math.sin(t * angularVelocityFromNoteNumber(nn));
   }
   function tonePiano(t, duration, nn) {
-    const e = 0.5 * envelopeASR(t, duration, 0.001, 0.01);
+    const e = 0.5 * envelopeADR(t, duration, 0.001, 3, 0.01);
     if (e == 0) return 0;
+    const e1 = envelopeAR(t, 0.0, 1);
     return 0.040 * e * Math.sin(
       t * angularVelocityFromNoteNumber(nn) +
-      2.0 * Math.sin(t * angularVelocityFromNoteNumber(nn))
+      16.0 * e1 * Math.sin(3 * t * angularVelocityFromNoteNumber(nn))
     );
   }
   function toneBase(t, duration, nn) {
-    const e = 0.5 * envelopeASR(t, duration, 0.001, 0.01);
+    const e = 0.5 * envelopeADR(t, duration, 0.001, 3, 0.01);
     if (e == 0) return 0;
+    const e1 = envelopeAR(t, 0.0, 1);
     return 0.040 * e * Math.sin(
       t * angularVelocityFromNoteNumber(nn) +
-      4.0 * Math.sin(t * angularVelocityFromNoteNumber(nn))
+      16.0 * e1 * Math.sin(t * angularVelocityFromNoteNumber(nn))
     );
   }
   function toneCymbal(t, duration, nn) {
-    const e = envelopeAR(t, 0.0005, 1);
+    const e = envelopeAR(t, 0.01, 2);
     if (e == 0) return 0;
     const n = 8;
     let d = 0;
     for (let j = 0; j < n; ++j) {
       d += 0.080 / n *
-        Math.sin(440 * Math.pow(2, 2.9) * (1 + 1.5 * j / n) * 2 * Math.PI * (
-          t + 0.0002 * Math.sin((50 + 10 * (j / n)) * 2 * Math.PI * t)
+        Math.sin(440 * Math.pow(2, 2.5) * (1 + 3 * j / n) * 2 * Math.PI * (
+          t + 0.0002 * Math.sin(50 * 2 * Math.PI * t)
         ));
     }
     return d * Math.pow(e, 4);
   }
   function toneHihat(t, duration, nn) {
-    const e = envelopeAR(t, 0.0005, 0.05);
+    const e = envelopeADR(t, duration, 0.0005, 0.5, 0.05);
     const n = 8;
     let d = 0;
     for (let j = 0; j < n; ++j) {
       d += 0.060 / n *
         Math.sin(440 * Math.pow(2, 3.2) * (1 + 1.5 * j / n) * 2 * Math.PI * (
-          t + 0.0002 * Math.sin((50 + 10 * (j / n)) * 2 * Math.PI * t)
+          t + 0.0002 * Math.sin(60 * 2 * Math.PI * t)
         ));
     }
     return d * e;
@@ -86,7 +98,7 @@
   function notes(t, toneFunc, params) {
     let d = 0;
     let nt = 0;
-    for (p of params) {
+    for (let p of params) {
       [noteStr, gateBeat, stepBeat] = p;
       if (stepBeat === undefined) stepBeat = gateBeat;
       d += toneFunc(t - nt, gateBeat * spb, noteNumberFromString(noteStr));
@@ -96,7 +108,7 @@
   }
   function repeat(t, duration, count) {
     if (t < 0) return t;
-    if (t >= t + count * duration) return t - duration;
+    if (t + count * duration <= t) return t - duration;
     return t % duration;
   }
   function samplePart0(t) {
@@ -137,8 +149,9 @@
     d += notes(repeat(t, 1 * spb, 16), toneBassDrum, [
       ["4c", 1]
     ]);
+    d += notes(t, toneCymbal, [["4c", 1]]);
     d += notes(repeat(t, 1 * spb, 16), toneHihat, [
-      ["4c", 0.25], ["4c", 0.25], ["4c", 0.5],
+      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 0.4, 0.5],
     ]);
     return d;
   }
