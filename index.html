@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <button autofocus>Start</button>
 <script>
-  const tempo = 160;
+  const tempo = 150;
   const spb = 60 / tempo;
   function clamp(val, minVal, maxVal) {
     return Math.max(minVal, Math.min(val, maxVal));
@@ -44,24 +44,45 @@
   function toneSine(t, duration, nn) {
     const e = envelopeASR(t, duration, 0.001, 0.01);
     if (e == 0) return 0;
-    return 0.125 * e * Math.sin(t * angularVelocityFromNoteNumber(nn));
+    return 0.125 * e * Math.sin(angularVelocityFromNoteNumber(nn) * t);
   }
-  function tonePiano(t, duration, nn) {
+  function toneLead1(t, duration, nn) {
     const e = 0.5 * envelopeDR(t, duration, 3, 0.1);
     if (e == 0) return 0;
     const e1 = envelopeR(t, 1);
     return 0.040 * e * Math.sin(
-      t * angularVelocityFromNoteNumber(nn) +
-      16.0 * e1 * Math.sin(3 * t * angularVelocityFromNoteNumber(nn))
+      angularVelocityFromNoteNumber(nn) * t +
+      16.0 * e1 * Math.sin(3 * angularVelocityFromNoteNumber(nn) * t)
     );
+  }
+  function toneSawSynth(t, duration, nn) {
+    const e = envelopeDR(t, duration, 3, 0.1);
+    if (e == 0) return 0;
+    const e1 = envelopeR(t, 1);
+    const n = 3;
+    let d = 0;
+    const angVelBase = angularVelocityFromNoteNumber(nn);
+    for (i = 0; i < n; ++i) {
+      const angVel = angVelBase + 3 * (-1 * 3 + i) * 2 * Math.PI;
+      d += 0.015 / n * Math.sin(
+        angVel * t +
+        3 * e1 * Math.sin(
+          angVel * t +
+          3 * e1 * Math.sin(
+            angVel * t
+          )
+        )
+      )
+    }
+    return e * d;
   }
   function toneBase(t, duration, nn) {
     const e = 0.5 * envelopeDR(t, duration, 3, 0.01);
     if (e == 0) return 0;
     const e1 = envelopeR(t, 1);
     return 0.040 * e * Math.sin(
-      t * angularVelocityFromNoteNumber(nn) +
-      16.0 * e1 * Math.sin(t * angularVelocityFromNoteNumber(nn))
+      angularVelocityFromNoteNumber(nn) * t +
+      16.0 * e1 * Math.sin(angularVelocityFromNoteNumber(nn) * t)
     );
   }
   function toneCymbal(t, duration, nn) {
@@ -82,19 +103,35 @@
     const n = 8;
     let d = 0;
     for (let j = 0; j < n; ++j) {
-      d += 0.060 / n *
-        Math.sin(3500 * (1 + j / n) * 2 * Math.PI * (
+      d += 0.050 / n *
+        Math.sin(4500 * (1 + j / n) * 2 * Math.PI * (
           t + 0.0002 * Math.sin(60 * t * 2 * Math.PI)
         ));
     }
     return d * e;
   }
+  function toneSnareDrum(t, duration, nn) {
+    const e = envelopeR(t, 0.2);
+    if (e == 0) return 0;
+    let d = 0;
+    d += 0.1 * Math.sin(
+      80 * t * 2 * Math.PI * (1 + 2 * Math.pow(Math.max(1 - (t / 0.2), 0), 2)) +
+      0.02 * Math.sin(40 * t * 2 * Math.PI)
+    );
+    const n = 8;
+    for (let j = 0; j < n; ++j) {
+      d += 0.060 / n *
+        Math.sin(5000 * (1 + j / n) * 2 * Math.PI * (
+          t + 0.0002 * Math.sin(60 * t * 2 * Math.PI)
+        ));
+    }
+    return d * Math.pow(e, 2);
+  }
   function toneBassDrum(t, duration, nn) {
     const e = envelopeR(t, 0.4);
     if (e == 0) return 0;
-    const d = 0.25 * Math.sin(
-      t * 40 * 2 * Math.PI +
-      t * 120 * 2 * Math.PI * Math.pow(Math.max(0, 1 - (t / 0.4)), 2) +
+    const d = 0.10 * Math.sin(
+      50 * t * 2 * Math.PI * (1 + 3 * Math.pow(Math.max(0, 1 - (t / 0.4)), 2)) +
       0.5 * Math.sin(40 * t * 2 * Math.PI)
     );
     return d * Math.pow(e, 2);
@@ -118,27 +155,58 @@
   function samplePart0(t) {
     if (t < 0 || 4 * spb <= t) return 0;
     let d = 0;
-    d += notes(t - 0.5 * spb, tonePiano, [
+    d += notes(t - 0.5 * spb, toneSawSynth, [
       ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
       ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
       ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
       ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25, 0.25 + 0.5],
-      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.5, 0], ["6d", 0.5, 0], ["6a", 0.5],
     ]);
-    d += notes(t - 2.5 * spb, tonePiano, [
+    d += notes(t - 2.5 * spb, toneLead1, [
       ["4g", 0.5], ["5f", 0.5], ["5c", 0.5],
+    ]);
+    d += notes(t - 0.5 * spb, toneSnareDrum, [
+      ["4c", 0.25], ["4c", 0.25], ["4c", 0.25], ["4c", 0.25 + 0.5 + 1], 
+      ["4c", 0]
+    ]);
+    d += notes(t - 2 * spb, toneBassDrum, [
+      ["4c", 0]
     ]);
     return d;
   }
   function samplePart1(t) {
     if (t < 0 || 8 * 4 * spb <= t) return 0;
     let d = 0;
-    d += notes(t, tonePiano, [
+    d += notes(t, toneLead1, [
       ["5d", 2, 2 + 0.5],
       ["4b-", 0.5],
       ["5c", 0.5],
       ["5d", 0.5 + 0.75], ["5c", 0.75], ["4b-", 0.5],
       ["4a", 0.75], ["4b-", 0.75], ["5c", 0.5],
+      ["5d", 4]
+    ]);
+    d += notes(t - 0.5 * spb, toneSawSynth, [
+      ["5g", 0.5, 0], ["5b-", 0.5],
+      ["5d", 0.5, 0], ["5f", 0.5],
+      ["5a", 0.5, 0], ["6c", 0.5],
+      ["5b-", 1.5, 0], ["6d", 1.5],
+      ["5g", 0.5 + 2, 0], ["5b-", 0.5 + 2],
+      ["5f", 0.75, 0], ["5a", 0.75],
+      ["5g", 0.75, 0], ["5b-", 0.75],
+      ["5a", 0.5, 0], ["6c", 0.5, 0.5 + 0.5],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25, 0.25 + 0.5],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25, 0.25 + 1 + 0.5],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25, 0.25 + 0.5],
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6a", 0.25],
     ]);
     d += notes(t, toneBase, [
       ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
@@ -149,13 +217,28 @@
       ["2e-", 0.5], ["3e-", 0.25], ["3e-", 0.25],
       ["2f", 0.5], ["3f", 0.25], ["3f", 0.25],
       ["2f", 0.5], ["3f", 0.25], ["3f", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
+      ["2g", 0.5], ["3g", 0.25], ["3g", 0.25],
     ]);
-    d += notes(repeat(t, 1 * spb, 16), toneBassDrum, [
-      ["4c", 1]
+    d += notes(repeat(t - 1 * spb, 2 * spb, 15), toneSnareDrum, [
+      ["4c", 0]
+    ]);
+    d += notes(t - 15 * spb, toneSnareDrum, [
+      ["4c", 0.25], ["4c", 0.25], ["4c", 0.25], ["4c", 0.25]
+    ]);
+    d += notes(repeat(t, 2 * spb, 16), toneBassDrum, [
+      ["4c", 0]
     ]);
     d += notes(t, toneCymbal, [["4c", 1]]);
-    d += notes(repeat(t, 1 * spb, 16), toneHihat, [
-      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 0.4, 0.5],
+    d += notes(repeat(t, 2 * spb, 16), toneHihat, [
+      ["4c", 0.001, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+      ["4c", 0.4, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
     ]);
     return d;
   }
@@ -169,11 +252,12 @@
   document.querySelector("button").onclick = () => {
     audioCtx = new AudioContext();
     const sampleRate = 44100;
-    const audioBuffer = audioCtx.createBuffer(1, 10 * sampleRate, sampleRate);
+    const audioBuffer = audioCtx.createBuffer(1, 20 * sampleRate, sampleRate);
     const data = audioBuffer.getChannelData(0);
     for (let i = 0; i < 10 * sampleRate; ++i) {
       const t = i / sampleRate;
       data[i] = sample(t);
+      //data[i] = sample(t + 7 * spb);
     }
     const audioBufferSourceNode = audioCtx.createBufferSource();
     audioBufferSourceNode.buffer = audioBuffer;
