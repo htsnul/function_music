@@ -59,17 +59,17 @@
     );
   }
   function toneLead2(t, duration, nn) {
-    const e = 0.5 * envelopeDR(t, duration, 3, 0.1);
+    const e = 0.5 * envelopeADR(t, duration, 0.02, 3, 0.1);
     if (e == 0) return 0;
-    const e1 = envelopeR(t, 1);
+    const e1 = 0.2 + 0.8 * envelopeR(t, 1);
     const angVel = angularVelFromNoteNumber(nn); 
-    return 0.040 * e * Math.sin(
+    return 0.050 * e * Math.sin(
       angVel * t +
-      10.0 * e1 * Math.sin(1 * angVel * t)
+      15.0 * e1 * Math.sin(1 * angVel * t)
     );
   }
   function toneSawSynth(t, duration, nn) {
-    const e = envelopeDR(t, duration, 3, 0.1);
+    const e = envelopeADR(t, duration, 0.01, 3, 0.1);
     if (e == 0) return 0;
     const e1 = envelopeR(t, 1);
     const n = 3;
@@ -125,11 +125,11 @@
     });
     return func;
   }
-  const cymbalNoise = makeBandpassFilteredNoiseFunc(4000, 0.3);
+  const cymbalNoise = makeBandpassFilteredNoiseFunc(4000, 0.2);
   function toneCymbal(t, duration, nn) {
-    const e = envelopeAR(t, 0.04, 2);
+    const e = envelopeAR(t, 0.05, 2);
     if (e == 0) return 0;
-    const d = 0.1 * cymbalNoise(Math.round(t * sampleRate));
+    const d = 0.05 * cymbalNoise(Math.round(t * sampleRate));
     return d * Math.pow(e, 4);
   }
   const hihatNoise = makeBandpassFilteredNoiseFunc(5000, 0.15);
@@ -144,7 +144,7 @@
     if (e == 0) return 0;
     let d = 0;
     d += 0.06 * Math.sin(
-      100 * t * 2 * Math.PI * (1 + 2 * Math.pow(Math.max(0, 1 - (t / 0.2)), 2)) +
+      (100 + 10 * (nn - 60)) * t * 2 * Math.PI * (1 + 2 * Math.pow(Math.max(0, 1 - (t / 0.2)), 2)) +
       0.02 * Math.sin(40 * t * 2 * Math.PI)
     );
     d += 0.05 * snareDrumNoise(Math.round(t * sampleRate));
@@ -291,7 +291,7 @@
       ["2g", 0.5], ["2g", 0.25], ["3g", 0.25],
     ]);
     d += notes(t - 31 * spb, toneBass, [
-      ["2f", 1]
+      ["2f", 0.5], ["3f", 0.5]
     ]);
     d += notes(repeat(t - 1 * spb, 2 * spb, 15), toneSnareDrum, [
       ["4c", 0]
@@ -313,32 +313,81 @@
     let d = 0;
     d += notes(t, toneLead2, [
       ["5e-", 2, 2.5], ["5e-", 0.5], ["5f", 0.5], ["5g", 0.5, 0.5 + 1],
-      ["5g", 1], ["5f", 0.5], ["5e-", 0.5 + 0.5], ["5f", 0.5 + 3, 0.5 + 3 + 0.5], 
-      ["5d", 0.5 + 4]
-    ]);
-    d += notes(repeat(t, 4 * spb, 2), toneBass, [
-      ["2e-", 0.75], ["2e-", 0.75], ["2e-", 0.5, 0.5 + 2],
+      ["5g", 1], ["5f", 0.5], ["5e-", 0.5 + 0.5], ["5f", 0.5 + 3, 0.5 + 3.5], 
+      ["5d", 0.5 + 3 + 0.5], ["5e-", 0.5 + 2.5],
+      ["5f", 0.5], ["5g", 0.5], ["5e-", 0.5 + 2.5],
+      ["5f", 0.5], ["5g", 0.5], ["5f+", 0.5 + 2], 
+      ["5g", 1.5], ["5a", 0.5, 0.5 + 1],
+      ["5f+", 1], ["5g", 0.5], ["5a", 0.5 + 0.5], ["5b-", 0.5, 0.5 + 5]
     ]);
     d += notes(t, toneSawSynth, [
       ["5b-", 5, 0], ["6e-", 5],
-      ["6d", 1],
-      ["6c", 1],
-      ["5b-", 0.5],
-      ["6c", 0.5 + 3 + 0.5],
-      ["5a", 0.5 + 3 + 0.5],
+      ["5b-", 1, 0], ["6d", 1],
+      ["5g", 1, 0], ["6c", 1],
+      ["5g", 0.5, 0], ["5b-", 0.5],
+      ["5a", 0.5 + 3.5, 0], ["6c", 0.5 + 3.5],
+      ["5f", 0.5 + 3.5, 0], ["5a", 0.5 + 3.5],
+      ["5g", 0.5 + 2.5, 0], ["5b-", 0.5 + 2.5],
+      ["5g", 0.5, 0], ["6c", 0.5],
+      ["5g", 0.5, 0], ["6d", 0.5],
+      ["5g", 0.5 + 2, 0], ["5b-", 0.5 + 2],
+      ["5g", 0.5, 0], ["6c", 0.5],
+      ["5g", 0.5, 0], ["6d", 0.5],
+      ["5b-", 0.5, 0], ["6e-", 0.5],
+      ["5g", 0.5 + 2, 0], ["6d", 0.5 + 2],
+      ["5c", 0.5, 0], ["6e", 1.5],
+      ["6d", 0.5, 0], ["6f+", 0.5, 0.5 + 1],
+      ["5f+", 1, 0], ["5a", 1],
+      ["5g", 0.5, 0], ["5b-", 0.5],
+      ["6a", 0.5 + 0.5, 0], ["6c", 0.5 + 0.5],
+      ["5b-", 0.5 + 5, 0], ["6d", 0.5 + 5],
+    ]);
+    d += notes(repeat(t, 4 * spb, 2), toneBass, [
+      ["3e-", 0.5, 0.75], ["3e-", 0.5, 0.75], ["3e-", 0.5, 0.5 + 2],
     ]);
     d += notes(repeat(t - 8 * spb, 4 * spb, 2), toneBass, [
-      ["2d", 0.75], ["2d", 0.75], ["2d", 0.5, 0.5 + 2],
+      ["3d", 0.5, 0.75], ["3d", 0.5, 0.75], ["3d", 0.5, 0.5 + 2],
     ]);
-    d += notes(t - 2.5 * spb, toneHihat, [
-      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 1, 1 + 2.5],
-      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 0.001, 0.5], ["4c", 1, 0.5 + 2.5],
+    d += notes(repeat(t - (4 * 4) * spb, 1 * spb, 4), toneBass, [
+      ["3c", 0.25, 0.5], ["3c", 0.25], ["3c", 0.25],
     ]);
-    d += notes(repeat(t - 3 * spb, 4 * spb, 4), toneSnareDrum, [
-      ["4c", 4],
+    d += notes(repeat(t - (5 * 4) * spb, 1 * spb, 4), toneBass, [
+      ["2b-", 0.25, 0.5], ["2b-", 0.25], ["2b-", 0.25],
+    ]);
+    d += notes(repeat(t - (6 * 4) * spb, 1 * spb, 4), toneBass, [
+      ["2a", 0.25, 0.5], ["2a", 0.25], ["2a", 0.25],
+    ]);
+    d += notes(repeat(t - (7 * 4) * spb, 1 * spb, 4), toneBass, [
+      ["3d", 0.25, 0.5], ["3d", 0.25], ["3d", 0.25],
+    ]);
+    d += notes(t, toneHihat, [
+      ["4c", 0.001, 0.75], ["4c", 0.001, 0.75], ["4c", 0.001, 0.5 + 0.5],
+      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 1, 1],
+      ["4c", 0.001, 0.75], ["4c", 0.001, 0.75], ["4c", 0.001, 0.5 + 0.5],
+      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 0.001, 0.5], ["4c", 1, 0.5],
+      ["4c", 0.001, 0.75], ["4c", 0.001, 0.75], ["4c", 0.001, 0.5 + 0.5],
+      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 1, 1],
+      ["4c", 0.001, 0.75], ["4c", 0.001, 0.75], ["4c", 0.001, 0.5 + 0.5],
+      ["4c", 0.001, 0.25], ["4c", 0.001, 0.25], ["4c", 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+    ]);
+    d += notes(repeat(t - 16 * spb, 2 * spb, 16), toneHihat, [
+      ["4c", 0.001, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+      ["4c", 0.4, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+    ]);
+    d += notes(t - 3 * spb, toneSnareDrum, [
+      ["4c", 1, 1 + 3], ["4c", 1, 1 + 3],
+      ["4c", 1, 1 + 3], ["4c", 0.5], ["4c", 0.25], ["4c", 0.25 + 1],
+      ["4c", 1, 1 + 1], ["4c", 1, 1 + 1], ["4c", 1, 1 + 1], ["4c", 1, 1 + 1],
+      ["4c", 1, 1 + 1], ["4c", 1, 1 + 1],
+      ["4d+", 0.25], ["4d+", 0.25], ["4d", 0.25], ["4d", 0.25],
+      ["4c+", 0.25], ["4c+", 0.25], ["4c", 0.25], ["4c", 0.25],
+      ["4c", 0.25], ["4c", 0.5], ["4c", 0.25],
     ]);
     d += notes(repeat(t, 4 * spb, 4), toneBassDrum, [
       ["4c", 0.75], ["4c", 0.75], ["4c", 0.5 + 2],
+    ]);
+    d += notes(repeat(t - 4 * 4 * spb, 2 * spb, 16), toneBassDrum, [
+      ["4c", 0]
     ]);
     return d;
   }
@@ -353,19 +402,19 @@
   let audioCtx = null;
   document.querySelector("button").onclick = () => {
     audioCtx = new AudioContext();
-    const startTime = audioCtx.currentTime
-    for (let i = 0; i < 10; ++i) {
+    const audioCtxBaseTime = audioCtx.currentTime
+    for (let i = 0; i < 60; ++i) {
       const audioBuffer = audioCtx.createBuffer(1, sampleRate, sampleRate);
       const data = audioBuffer.getChannelData(0);
       for (let j = 0; j < sampleRate; ++j) {
         const t = i + j / sampleRate;
         data[j] = sample(t + 0 * spb);
-        //data[j] = sample(t + 32 * spb);
+        //data[j] = sample(t + (1 + 32 + 16 + 12 - 2) * spb);
       }
       const audioBufferSourceNode = audioCtx.createBufferSource();
       audioBufferSourceNode.buffer = audioBuffer;
       audioBufferSourceNode.connect(audioCtx.destination);
-      audioBufferSourceNode.start(startTime + i + 3);
+      audioBufferSourceNode.start(audioCtxBaseTime + i + 3);
     }
   }
 </script>
