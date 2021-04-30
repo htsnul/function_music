@@ -176,6 +176,7 @@
     let d = 0;
     let nt = 0;
     for (let p of params) {
+      if (t < nt) break;
       [noteStr, gateBeat, stepBeat] = p;
       if (stepBeat === undefined) stepBeat = gateBeat;
       d += toneFunc(t - nt, gateBeat * spb, noteNumberFromString(noteStr));
@@ -306,18 +307,24 @@
     d += notes(t - 31 * spb, toneBass, [
       ["2f", 0.5], ["3f", 0.5]
     ]);
-    d += notes(repeat(t - 1 * spb, 2 * spb, 15), toneSnareDrum, [
+    d += notes(repeat(t, 2 * spb, 16), toneHihat, [
+      ["4c", 0.001, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+      ["4c", 0.4, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+    ]);
+    d += notes(repeat(t - 1 * spb, 2 * spb, 7), toneSnareDrum, [
       ["4c", 0]
     ]);
     d += notes(t - 15 * spb, toneSnareDrum, [
       ["4c", 0.25], ["4c", 0.25], ["4c", 0.25], ["4c", 0.25]
     ]);
-    d += notes(repeat(t, 2 * spb, 16), toneBassDrum, [
+    d += notes(repeat(t - (16 + 1) * spb, 2 * spb, 7), toneSnareDrum, [
       ["4c", 0]
     ]);
-    d += notes(repeat(t, 2 * spb, 16), toneHihat, [
-      ["4c", 0.001, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
-      ["4c", 0.4, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+    d += notes(t - 31 * spb, toneSnareDrum, [
+      ["4c", 0.25], ["4c", 0.25], ["4c", 0.25], ["4c", 0.25]
+    ]);
+    d += notes(repeat(t, 2 * spb, 16), toneBassDrum, [
+      ["4c", 0]
     ]);
     return d;
   }
@@ -483,13 +490,60 @@
     ]);
     return d;
   }
+  function samplePart4(t) {
+    if (t < -0.5 * spb || (16 + 2) * spb <= t) return 0;
+    let d = 0;
+    d += notes(t + 0.5 * spb, toneLead2, [
+      ["5g", 0.5 + 2.5], ["5f", 0.5], ["5g", 0.5],
+      ["5a", 0.5 + 2.5], ["5g", 0.5], ["5f", 0.5],
+      ["5g", 0.5 + 4],
+    ]);
+    d += notes(t + 0.5 * spb, toneSawSynth, [
+      ["5g", 0.5 + 3.5, 0], ["5b-", 0.5 + 3.5, 0], ["6e-", 0.5 + 3.5],
+      ["5a", 0.5 + 3.5, 0], ["6c", 0.5 + 3.5, 0], ["6f", 0.5 + 3.5],
+      ["5b-", 0.5 + 4, 0], ["6d", 0.5 + 4, 0], ["6g", 0.5 + 4 + 0.5],
+    ]);
+    d += notes(repeat(t - 12.5 * spb, 0.25 * spb, 4), toneSawSynth, [
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6g", 0.25],
+    ]);
+    d += notes(t - 14 * spb, toneSawSynth, [
+      ["5b-", 0.25, 0], ["6d", 0.25, 0], ["6g", 0.25],
+    ]);
+    d += notes(repeat(t, spb, 4), toneBass, [
+      ["2e-", 0.5], ["2e-", 0.25], ["3e-", 0.25],
+    ]);
+    d += notes(repeat(t - 4 * spb, spb, 4), toneBass, [
+      ["2f", 0.5], ["2f", 0.25], ["3f", 0.25],
+    ]);
+    d += notes(repeat(t - 8 * spb, spb, 6), toneBass, [
+      ["2g", 0.5], ["2g", 0.25], ["3g", 0.25],
+    ]);
+    d += notes(t - 14 * spb, toneBass, [["2g", 0.5]]);
+    d += notes(t - 14 * spb, toneCymbal, [["4c", 0]]);
+    d += notes(repeat(t, 2 * spb, 6), toneHihat, [
+      ["4c", 0.001, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+      ["4c", 0.4, 0.5], ["4c", 0.001, 0.25], ["4c", 0.001, 0.25],
+    ]);
+    d += notes(repeat(t - 1 * spb, 2 * spb, 6), toneSnareDrum, [
+      ["4c", 0]
+    ]);
+    d += notes(t - 12.5 * spb, toneSnareDrum, [
+      ["4c", 0.25], ["4c", 0.25], ["4c", 0.25], ["4c", 0.25]
+    ]);
+    d += notes(t - 14 * spb, toneSnareDrum, [["4c", 0]]);
+    d += notes(repeat(t, 2 * spb, 8), toneBassDrum, [
+      ["4c", 0]
+    ]);
+    return d;
+  }
   function sample(t) {
     //return toneCymbal(t, 60, 0.5);
     return (
       samplePart0(t) +
       samplePart1(t - 4 * spb) +
       samplePart2(t - (4 + 32) * spb) +
-      samplePart3(t - (4 + 32 + 32) * spb)
+      samplePart3(t - (4 + 32 + 32) * spb) +
+      samplePart4(t - (4 + 32 + 32 + 32) * spb)
     );
   }
   document.querySelector("button").onclick = async (e) => {
@@ -501,7 +555,7 @@
       for (let j = 0; j < sampleRate; ++j) {
         const t = i + j / sampleRate;
         data[j] = sample(t + 0 * spb);
-        //data[j] = sample(t + (4 + 32 + 32 + 16 - 2) * spb);
+        //data[j] = sample(t + (4 + 32 + 32 + 32 - 2) * spb);
       }
       const audioBufferSourceNode = audioCtx.createBufferSource();
       audioBufferSourceNode.buffer = audioBuffer;
