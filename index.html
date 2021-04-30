@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<button autofocus>Start</button>
-翼をもった少年 / ミュージックフロム イースIII ワンダラーズフロムイース / Copyright © Nihon Falcom Corporation
+<div>翼をもった少年 / ミュージックフロム イースIII ワンダラーズフロムイース / Copyright © Nihon Falcom Corporation</div>
+<div><button class="start" autofocus>Start</button></div>
+<div><button class="create-download-link">Create Download Link</button></div>
 <script>
   const sampleRate = 22050;
   const tempo = 145;
@@ -526,7 +527,7 @@
       samplePart4(t - (4 + 32 + 32 + 32) * spb)
     );
   }
-  document.querySelector("button").onclick = async (e) => {
+  document.querySelector(".start").onclick = async (e) => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const audioCtx = new AudioContext();
     const audioCtxBaseTime = audioCtx.currentTime
@@ -546,4 +547,34 @@
       await new Promise((resolve) => setTimeout(() => resolve(), 1));
     }
   }
+  document.querySelector(".create-download-link").onclick = () => {
+    const samplesLen = 50 * sampleRate;
+    const bytesPerSample = 2;
+    const buffer = new ArrayBuffer(44 + samplesLen * bytesPerSample);
+    const view = new DataView(buffer);
+    [..."RIFF"].forEach((c, i) => view.setUint8(i, c.charCodeAt(c)));
+    view.setUint32(4, 32 + samplesLen * bytesPerSample, true);
+    [..."WAVE"].forEach((c, i) => view.setUint8(8 + i, c.charCodeAt(c)));
+    [..."fmt "].forEach((c, i) => view.setUint8(12 + i, c.charCodeAt(c)));
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * bytesPerSample, true);
+    view.setUint16(32, bytesPerSample, true);
+    view.setUint16(34, 8 * bytesPerSample, true);
+    [..."data"].forEach((c, i) => view.setUint8(36 + i, c.charCodeAt(c)));
+    view.setUint32(40, samplesLen * bytesPerSample, true);
+    for (let i = 0; i < samplesLen; i++) {
+      const t = i / sampleRate;
+      const s = sample(t);
+      view.setInt16(44 + 2 * i, 0x7fff * s, true);
+    }
+    const blob = new Blob([view], { type: "audio/wav" });
+    const elm = document.createElement("a");
+    elm.href = URL.createObjectURL(blob);
+    elm.download = "output.wav";
+    elm.innerHTML = elm.download;
+    document.body.appendChild(elm);
+  };
 </script>
