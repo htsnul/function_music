@@ -547,6 +547,7 @@
     );
   }
   document.querySelector("button").onclick = async (e) => {
+    AudioContext = window.AudioContext || window.webkitAudioContext;
     const audioCtx = new AudioContext();
     const audioCtxBaseTime = audioCtx.currentTime
     for (let i = 0; i < 60; ++i) {
