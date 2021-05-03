@@ -99,7 +99,7 @@ FM音源については [FMシンセのあたらしいトリセツ](https://www.
 
 音を任意の時間・音階で複数鳴らせるようにするために、音色部分を関数化する。
 
-音階を周波数で指定するのは難しいため、まずはMIDI準拠のノートナンバーから周波数を計算できるようにしておく。
+音階を周波数で指定するのは難しいため、まずはMIDI準拠のノートナンバーから角周波数を計算できるようにしておく。
 69が440Hzのラで、1増減するごとに半音ずつ増減する。
 
 ```js
@@ -184,7 +184,7 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
   }
 ```
 
-アタックタイム途中でノートオフ（durationを超えた）場合は、リリースはその時点での音量から下がるよう考慮が必要になるため、`envelopeADR`は少し複雑になっている。
+アタックタイム途中でノートオフ（durationを超える）する場合は、リリースはその時点での音量から下がるよう考慮が必要になるため、`envelopeASR`・`envelopeADR` ではそのあたりを考慮している。
 `envelopeADSR` は、今回使わなかったので用意しなかったが、普通に実装できるはず。
 
 これを音色関数に組み込んでみる。
@@ -334,14 +334,14 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
 単純なノイズだけでは問題ないかもしれないが、後述するフィルタに適用する場合、入力が一意である必要があるため、ノイズの結果が時間に対して一意であることは必須になる。
 
 シンプルなノイズ関数としては [線形合同法](https://ja.wikipedia.org/wiki/%E7%B7%9A%E5%BD%A2%E5%90%88%E5%90%8C%E6%B3%95) が良さそうで、
-そのパラメータは Park & Miller が提示しているものを使おう。
+そのパラメータは MINSTD と呼ばれている値が良さそうでそれを使おう。
 
 サンプルのインデックスを受け取り、31bitの値を返す。
 
 ```js
-  function noise31b(s) {
-    if (s <= 0) return 1;
-    return (48271 * noise31b(s - 1)) % (2 ** 31 - 1);
+  function noise31b(n) {
+    if (n <= 0) return 1;
+    return (48271 * noise31b(n - 1)) % (2 ** 31 - 1);
   });
 ```
 
@@ -365,9 +365,9 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
 これを使って先ほどの `noise31b` 関数を以下のように変更する。
 
 ```js
-  const noise31b = memoiseFrom0((s) => {
-    if (s <= 0) return 1;
-    return (48271 * noise31b(s - 1)) % (2 ** 31 - 1);
+  const noise31b = memoiseFrom0((n) => {
+    if (n <= 0) return 1;
+    return (48271 * noise31b(n - 1)) % (2 ** 31 - 1);
   });
 ```
 
@@ -376,7 +376,7 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
 `noise31b` は31bit値なので、そのままでは使いづらい、他と同じように `-1` ～ `1` の値を返す `noise` 関数を作る。
 
 ```js
-  function noise(s) { return noise31b(s) / (2 ** 30) - 1; }
+  function noise(n) { return noise31b(n) / (2 ** 30) - 1; }
 ```
 
 また、この項での確認のためこのノイズ関数を使った音色関数を作る。
@@ -387,6 +387,8 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
     return 0.1 * noise(Math.round(t * sampleRate));
   }
 ```
+
+時間からサンプルのインデックスに変換している点に注意。
 
 これを使って、
 
@@ -404,25 +406,34 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
 シンバルの音をそれらしくするには、特定の周波数付近のみに偏ったノイズにしなければならない。
 そこで、前項のノイズに対してバンドパスフィルタを掛けられるようにしていく。
 
-バンドパスフィルタについては biquad filter という結果だけ使う分には簡単な方法が確立している。
+バンドパス等の各種フィルタ実装には、[Cookbook formulae for audio equalizer biquad filter coefficients](http://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html) という有名な文章があり、簡単かつ感覚的に使うことができる。
 
 ```js
-  const bandpassFilteredNoise = memoiseFrom0((s) {
+  function biquadFilter(n, a, b, input, output) {
+    return (
+      b[0] / a[0] * input(n) +
+      b[1] / a[0] * input(n - 1) +
+      b[2] / a[0] * input(n - 2) +
+      -a[1] / a[0] * output(n - 1) +
+      -a[2] / a[0] * output(n - 2)
+    );
+  }
+  const bandpassFilteredNoise = memoiseFrom0((n) {
     const freq = 8000;
     const q = 0.5;
-    if (s < 0) return 0;
-    const omega = 2 * Math.PI * freq / sampleRate, alpha = Math.sin(omega) * q;
+    if (n < 0) return 0;
+    const omega = 2 * Math.PI * freq / sampleRate;
+    const alpha = Math.sin(omega) * q;
     const a = [1 + alpha, -2 * Math.cos(omega), 1 - alpha];
     const b = [alpha, 0, -alpha];
-    return (
-      b[0] / a[0] * noise(s) + b[1] / a[0] * noise(s - 1) + b[2] / a[0] * noise(s - 2) -
-      a[1] / a[0] * bandpassFilteredNoise(s - 1) - a[2] / a[0] * bandpassFilteredNoise(s - 2)
-    );
+    return biquadFilter(n, a, b, noise, bandpassFilteredNoise);
   });
 ```
 
 上記の例では、ノイズに対して、8000Hz近辺でバンドパスフィルタを掛けたノイズを取得できる関数を作っている。
 `q` の値は、バンドパスフィルタの幅を指定することができる。小さいほど幅が狭くなる。
+
+入力と出力でそれぞれ2サンプルまで過去の値が必要になっている。
 こちらもノイズ関数と同じように、再帰が大きくなりすぎる問題があるため、`memoiseFrom0` を適用している。
 
 また、実際には、`freq` と `q` が異なる様々なバンドパスフィルタありノイズ関数を作りたいため、
@@ -430,15 +441,13 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
 
 ```js
   function makeBandpassFilteredNoiseFunc(freq, q) {
-    const func = memoiseFrom0((s) => {
-      if (s < 0) return 0;
-      const omega = 2 * Math.PI * freq / sampleRate, alpha = Math.sin(omega) * q;
+    const func = memoiseFrom0((n) => {
+      if (n < 0) return 0;
+      const omega = 2 * Math.PI * freq / sampleRate;
+      const alpha = Math.sin(omega) * q;
       const a = [1 + alpha, -2 * Math.cos(omega), 1 - alpha];
       const b = [alpha, 0, -alpha];
-      return (
-        b[0] / a[0] * noise(s) + b[1] / a[0] * noise(s - 1) + b[2] / a[0] * noise(s - 2) -
-        a[1] / a[0] * func(s - 1) - a[2] / a[0] * func(s - 2)
-      );
+      return biquadFilter(n, a, b, noise, func);
     });
     return func;
   }
@@ -737,5 +746,5 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
 ## まとめ
 
 本記事では、`sample(t)` のみの実装で音楽を再現する試みを行った。
-この試みで、関数のみでシンプルに音楽を再現できることが実証できたと思う。
+この試みで、大掛かりな仕組みを作ることなく関数のみでシンプルに音楽波形データを生成できることが実証できたと思う。
 
