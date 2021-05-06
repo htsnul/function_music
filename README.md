@@ -551,7 +551,7 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
     let d = 0;
     const angVelBase = angularVelFromNoteNumber(nn);
     for (i = 0; i < n; ++i) {
-      const angVel = angVelBase + 2 * (-1 * 3 + i) * 2 * Math.PI;
+      const angVel = angVelBase + 4 * (-0.5 + i / (n - 1)) * 2 * Math.PI;
       d += 0.05 / n * Math.sin(
         angVel * t +
         3 * e1 * Math.sin(
