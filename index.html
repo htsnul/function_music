@@ -90,13 +90,8 @@
     const e = envelopeDR(t, duration, 0.2, 0.1);
     if (e == 0) return 0;
     const angVel = angularVelFromNoteNumber(nn); 
-    return 0.02 * e * Math.sin(
-      angVel * t +
-      1.2 * Math.sin(
-        2 * angVel * t +
-        1.2 * Math.sin(4 * angVel * t)
-      )
-    );
+    const s = Math.sin(angVel * t);
+    return 0.03 * e * (s > 0 ? 1 : -1) * (Math.abs(s) ** (1 / 16));
   }
   function toneBass(t, duration, nn) {
     const e = envelopeDR(t, duration, 3, 0.01);

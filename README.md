@@ -578,19 +578,16 @@ Wikipediaの [ADSR](https://ja.wikipedia.org/wiki/ADSR) の項目が参考にな
     const e = envelopeDR(t, duration, 0.2, 0.1);
     if (e == 0) return 0;
     const angVel = angularVelFromNoteNumber(nn); 
-    return 0.02 * e * Math.sin(
-      angVel * t +
-      1.2 * Math.sin(
-        2 * angVel * t +
-        1.2 * Math.sin(4 * angVel * t)
-      )
-    );
+    const s = Math.sin(angVel * t);
+    return 0.03 * e * (s > 0 ? 1 : -1) * (Math.abs(s) ** (1 / 16));
   }
 ```
 
 ↑後半、16分音符でピコピコ鳴っている矩形波シンセ。
-2倍変調、4倍変調と直列にして矩形波に近づけている。
-このあたりはセオリー通り。
+FM変調でやるならば、2、4倍変調を直列にして矩形波に近づけるのだが、
+FM変調という手段に拘る必要もない。また、原曲でもこの音はSSG音源。
+なので、sinに小さい値をべき乗することで、適度に滑らかな矩形波に変形している。
+べき乗する値が小さいほど矩形波に近づき、1に近づくほどサイン波になる。
 
 ```js
   function toneBass(t, duration, nn) {
