@@ -74,12 +74,13 @@ wavファイル生成してmp3に変換したものは [こちら](https://htsnu
 この段階で簡単でもよいのでFM音源的なFM変調を掛ける。
 
 ```js
-    return 0.2 * Math.sin(angVel * t);
+    return 0.2 * Math.sin(2 * Math.PI * 440 * t);
 ```
 
 となっていた部分を、
 
 ```js
+    const angVel = 2 * Math.PI * 440;
     return 0.05 * Math.sin(
       angVel * t +
       4 * Math.sin(1 * angVel * t)
@@ -114,7 +115,10 @@ FM音源については [FMシンセのあたらしいトリセツ](https://www.
   function toneSimple(t, duration, nn) {
     if (t < 0 || duration < t) return 0;
     const angVel = angularVelFromNoteNumber(nn); 
-    return 0.2 * Math.sin(angVel * t);
+    return 0.05 * Math.sin(
+      angVel * t +
+      4 * Math.sin(1 * angVel * t)
+    );
   }
 ```
 
